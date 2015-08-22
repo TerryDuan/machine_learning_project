@@ -1,0 +1,69 @@
+---
+title: "MachineLearningProject"
+author: "WeichuDuan"
+date: "August 21, 2015"
+output: html_document
+---
+
+#Introduction
+
+In this project, I chose the GBM method to build the prediction method. 
+
+##First we clean the data by removing all NA and column X, "new_window" and "num_window""
+
+```{r}
+library(caret)
+library(ggplot2)
+pmltraining <- read.csv("~/myR/pml-training.csv")
+pmltesting <- read.csv("~/myR/pml-testing.csv")
+pmltraining$X = NULL
+pmltraining$new_window= NULL
+pmltraining$num_window= NULL
+pmltesting$X= NULL
+pmltesting$new_window= NULL
+pmltesting$num_window= NULL
+inTrain <- createDataPartition(pmltraining$classe, p=0.3, list = FALSE)
+training <- pmltraining[inTrain,]
+validation <- pmltraining[-inTrain,]
+new_training <- training[,-grep("min|max|avg|amplitude|var|stddev|skewness|kurtosis", colnames(training))]
+new_validation <- validation[,-grep("min|max|avg|amplitude|var|stddev|skewness|kurtosis",colnames(validation))]
+new_pmltesting <- pmltesting[,-grep("min|max|avg|amplitude|var|stddev|skewness|kurtosis", colnames(pmltesting))]
+```
+
+#GBM model
+
+```{r}
+modFit <- train(classe~.,method = "gbm",data = new_training, verbose = FALSE)
+print(modFit)
+modFit$finalModel
+```
+
+#Cross Validation
+The cross validation is already done automatically in the train function  
+
+##Next we estimate the accuracy of the model on the validation set
+
+```{r}
+result <- predict(modFit, newdata = new_validation)
+TF <- result==new_validation$classe
+qplot(result,new_validation$classe, data = new_validation)
+summary(TF)
+```
+
+So the out-of-sample accuracy is about 99.38%  
+out of sample error is about 0.62%  
+
+#Test on the pml-testing set
+
+```{r}
+pml_write_files = function(x){
+  n = length(x)
+  for(i in 1:n){
+    filename = paste0("problem_id_",i,".txt")
+    write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pred <- predict(modFit, newdata = new_pmltesting)
+pml_write_files(pred)
+pred
+```
